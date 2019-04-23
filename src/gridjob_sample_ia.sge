@@ -1,0 +1,11 @@
+#!/bin/bash
+#$ -N RKI_IA
+#$ -t 1-300
+#$ -l mem=5G
+#$ -m n
+
+echo "Running job ${JOB_ID}, task ${SGE_TASK_ID} on `hostname`."
+
+mkdir "/tmp/${JOB_ID}_${SGE_TASK_ID}"
+
+THEANO_FLAGS="base_compiledir=/tmp/${JOB_ID}_${SGE_TASK_ID}/,floatX=float32,device=cpu,openmp=True,mode=FAST_RUN,warn_float64=warn" OMP_NUM_THREADS=8  python3 sample_ia_effects.py
