@@ -66,6 +66,7 @@ class IAEffectLoader(object):
                 with open(filename, "rb") as f:
                     tmp=pkl.load(f)
             except FileNotFoundError:
+                print("Warning: File {} not found!".format(filename))
                 pass
             except Exception as e:
                 print(e)
@@ -116,7 +117,7 @@ class BaseModel(object):
         self.include_demographics = include_demographics
         self.include_temporal = include_temporal
         self.trange = trange
-        
+
         first_year=self.trange[0][0]
         last_year=self.trange[1][0]
         self.features = {
@@ -126,7 +127,7 @@ class BaseModel(object):
                 "spatial": {"eastwest": SpatialEastWestFeature(self.county_info)} if self.include_eastwest else {},
                 "exposure": {"exposure": SpatioTemporalYearlyDemographicsFeature(self.county_info, "total", 1.0/100000)}
             }
-    
+
     def evaluate_features(self, weeks, counties):
         all_features = {}
         for group_name,features in self.features.items():
@@ -141,14 +142,14 @@ class BaseModel(object):
         weeks,counties = target.index, target.columns
 
         features = self.evaluate_features(weeks, counties)
-                
+
         Y = target.stack().values.astype(np.float32)
         T_S = features["temporal_seasonal"].values
         T_T = features["temporal_trend"].values
         TS = features["spatiotemporal"].values
         S = features["spatial"].values
         exposure = features["exposure"].values.ravel()
-            
+
         with pm.Model() as model:
             α     = pm.HalfCauchy("α", beta=2.0)
             IA    = pm.Flat("IA", shape=(len(Y),self.num_ia))
@@ -162,14 +163,15 @@ class BaseModel(object):
             if TS.shape[1]!=0:
                 W_ts  = pm.Normal("W_ts", mu=0, sd=1, shape=TS.shape[1])
                 s += tt.dot(TS, W_ts)
-                
+
             if S.shape[1]!=0:
                 W_s   = pm.Normal("W_s", mu=0, sd=1, shape=S.shape[1])
                 s += tt.dot(S, W_s)
 
-            μ = pm.Deterministic("μ", tt.exp(s)*exposure)
+            #μ = pm.Deterministic("μ", tt.exp(s)*exposure)
+            μ = tt.exp(s)*exposure
             pm.NegativeBinomial("Y", mu=μ, alpha=α, observed=Y)
-        
+
         return model
 
     def sample_parameters(self, target, samples=1000, chains=None, cores=8, init="auto", **kwargs):
@@ -180,13 +182,13 @@ class BaseModel(object):
         The basis functions are designed to be causal, i.e. only data points strictly predating the predicted time points are used (this implies "one-step-ahead"-predictions).
         """
         model = self.model(target)
-        
+
         if chains is None:
             chains = max(2,cores)
-        
+
         with model:
             ia_effect_loader = IAEffectLoader(model.IA, self.ia_effect_filenames, target.index, target.columns)
-            
+
             vars = [model.α, model.W_ia, model.W_t_s, model.W_t_t]
             if hasattr(model,"W_ts"):
                 vars += [model.W_ts]
@@ -201,7 +203,7 @@ class BaseModel(object):
 
     def sample_predictions(self, target_weeks, target_counties, parameters, init="auto"):
         features = self.evaluate_features(target_weeks, target_counties)
-                
+
         T_S = features["temporal_seasonal"].values
         T_T = features["temporal_trend"].values
         TS = features["spatiotemporal"].values
@@ -214,22 +216,22 @@ class BaseModel(object):
         W_t_t = parameters["W_t_t"]
         W_ts = parameters["W_ts"]
         W_s = parameters["W_s"]
-        
+
         num_predictions = len(target_weeks)*len(target_counties)
         num_parameter_samples = α.size
         with pm.Model() as model:
             IA = pm.Flat("IA", shape=(num_predictions,self.num_ia))
             ia_effect_loader = IAEffectLoader(model.IA, self.ia_effect_filenames, target_weeks, target_counties)
             IA_trace = pm.sample(num_parameter_samples, ia_effect_loader, chains=1, cores=1, init=init, compute_convergence_checks=False)["IA"]
-        
+
         μs = np.exp(np.dot(T_S, W_t_s.T) + np.dot(T_T, W_t_t.T) + np.dot(TS, W_ts.T) + np.dot(S, W_s.T) + (IA_trace*W_ia[:,np.newaxis,:]).sum(axis=-1).T)*exposure
         ys = pm.NegativeBinomial.dist(mu=μs, alpha=α).random()
-        
+
         new_trace = {}
         for varname in parameters.varnames:
             new_trace[varname] = parameters[varname]
         new_trace["IA"] = IA_trace.T
         new_trace["μ"] = μs.T
         new_trace["Y"] = ys.T
-        
+
         return new_trace
