@@ -22,7 +22,7 @@ model_complexity, disease = combinations[i]
 use_age, use_eastwest     = combinations_age_eastwest[model_complexity]
 prediction_region         = "bavaria" if disease=="borreliosis" else "germany"
 
-filename_params = "../data/mcmc_samples/parameters_{}_{}_{}.pkl".format(disease, use_age, use_eastwest)
+filename_params = "../data/mcmc_samples/parameters_{}_{}_{}".format(disease, use_age, use_eastwest)
 filename_pred = "../data/mcmc_samples/predictions_{}_{}_{}.pkl".format(disease, use_age, use_eastwest)
 
 
@@ -40,13 +40,16 @@ model = BaseModel(tspan, county_info, ["../data/ia_effect_samples/{}_{}.pkl".for
 
 print("Sampling parameters on the training set.")
 trace = model.sample_parameters(target_train, samples=num_samples, tune=100, target_accept=0.95, max_treedepth=15, chains=num_chains, cores=num_cores)
-with open(filename_params, 'wb') as f:
-   pkl.dump(trace, f)
+# with open(filename_params, 'wb') as f:
+#    pkl.dump(trace, f)
+
+with model.model:
+   pm.save_trace(trace, filename_params)
 
 print("Sampling predictions on the testing set.")
 pred = model.sample_predictions(target_test.index, target_test.columns, trace)
 with open(filename_pred, 'wb') as f:
    pkl.dump(pred, f)
 
-for file in [filename_params, filename_pred]:
-    set_file_permissions(file, uid=46836, gid=10033)
+# for file in [filename_params, filename_pred]:
+#     set_file_permissions(file, uid=46836, gid=10033)

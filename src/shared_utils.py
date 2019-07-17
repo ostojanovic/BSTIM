@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta, time
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from shapely.geometry import Point, Polygon
 from shapely.ops import cascaded_union
 from descartes import PolygonPatch
@@ -9,6 +9,7 @@ import seaborn as sns
 from matplotlib.collections import PatchCollection
 import matplotlib.cm
 from matplotlib.axes import Axes
+from matplotlib.gridspec import GridSpec, GridSpecFromSubplotSpec
 import matplotlib.transforms as transforms
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -16,7 +17,7 @@ import re, isoweek
 import pymc3 as pm
 import theano.tensor as tt
 import scipy.stats
-import os
+import os, itertools
 
 yearweek_regex = re.compile(r"([0-9]+)-KW([0-9]+)")
 def _parse_yearweek(yearweek):
@@ -317,3 +318,56 @@ fig=plt.gcf(), lower_kwargs={}, diagonal_kwargs={}, upper_kwargs={}, rasterized=
         fake_axes[(0,x)].xaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%.1f'))
 
     return np.array(axes)
+
+
+# because the default forest plot is not flexible enough #sad
+def forestplot(trace, var_names=None, var_args={}, fig=plt.gcf(), sp=GridSpec(1,1)[:,:], combine=False, credible_interval=0.94):
+    if var_names == None:
+        var_names = trace.varnames
+    var_args = defaultdict(lambda: {"color": "black", "label": None, "interquartile_linewidth": 2, "credible_linewidth": 1}, **var_args)
+    
+    num_groups = len(var_names)
+    tp = trace.point(0)
+
+    def plot_var_trace(ax, y, var_trace, credible_interval=0.94, **args):
+        endpoint = (1 - credible_interval) / 2
+        qs = np.quantile(var_trace, [endpoint, 1.0-endpoint, 0.25, 0.75])
+        ax.plot(qs[:2],[y, y], color=args["color"], linewidth=args["credible_linewidth"])
+        ax.plot(qs[2:],[y, y], color=args["color"], linewidth=args["interquartile_linewidth"])
+        ax.plot([np.mean(var_trace)], [y], "o", color=args["color"])
+
+    grid = GridSpecFromSubplotSpec(num_groups,1,sp, height_ratios=[np.prod(tp[name].shape)+2 for name in var_names])
+    axes = []
+    offset = 0.0
+    for j,name in enumerate(var_names):
+        ax = fig.add_subplot(grid[j])
+        args= var_args[name]
+
+        yticks = []
+        yticklabels = []
+        # plot label
+        # plot variable stats
+        for i,idx in enumerate(itertools.product(*(range(s) for s in tp[name].shape))):
+            yticks.append(-i)
+            yticklabels.append("{}".format(np.squeeze(idx)))
+            if combine:
+                var_trace = trace[name][(slice(-1),)+tuple(idx)]
+                plot_var_trace(ax, -i, var_trace, credible_interval=credible_interval, **args)
+            else:
+                for c,chain in enumerate(trace.chains):
+                    var_trace = trace.get_values(name, chains=chain)[(slice(-1),)+tuple(idx)]
+                    plot_var_trace(ax, -i+0.25-c/(trace.nchains-1) * 0.5, var_trace, credible_interval=credible_interval, **args)
+
+
+        ax.set_yticks(yticks)
+        ax.set_ylim([yticks[-1]-1, 1])
+        ax.set_yticklabels(yticklabels)
+
+        label = args["label"]
+        if label == None:
+            label = name
+        ax.set_ylabel(label)
+
+        # ax.set_frame_on(False)
+        axes.append(ax)
+    return axes, grid

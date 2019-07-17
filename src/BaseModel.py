@@ -147,18 +147,7 @@ class BaseModel(object):
             all_features[group_name] = pd.DataFrame(group_features)
         return all_features
 
-
-    def sample_parameters(self, target, n_init=100, samples=1000, chains=None, cores=8, init="advi", target_accept=0.8, max_treedepth=10, **kwargs):
-        """
-            sample_parameters(target, samples=1000, cores=8, init="auto", **kwargs)
-
-        Samples from the posterior parameter distribution, given a training dataset.
-        The basis functions are designed to be causal, i.e. only data points strictly predating the predicted time points are used (this implies "one-step-ahead"-predictions).
-        """
-        # model = self.model(target)
-
-        if chains is None:
-            chains = max(2,cores)
+    def init_model(self, target):
         weeks,counties = target.index, target.columns
 
         # extract features
@@ -182,7 +171,6 @@ class BaseModel(object):
         with pm.Model() as self.model:
             # interaction effects are generated externally -> flat prior
             IA    = pm.Flat("IA", testval=np.ones((num_obs, self.num_ia)),shape=(num_obs, self.num_ia))
-            ia_effect_loader = IAEffectLoader(IA, self.ia_effect_filenames, target.index, target.columns)
 
             # priors
             #δ = 1/√α
@@ -208,7 +196,25 @@ class BaseModel(object):
             # constrain to observations
             pm.NegativeBinomial("Y", mu=μ, alpha=α, observed=Y_obs)
 
+
+    def sample_parameters(self, target, n_init=100, samples=1000, chains=None, cores=8, init="advi", target_accept=0.8, max_treedepth=10, **kwargs):
+        """
+            sample_parameters(target, samples=1000, cores=8, init="auto", **kwargs)
+
+        Samples from the posterior parameter distribution, given a training dataset.
+        The basis functions are designed to be causal, i.e. only data points strictly predating the predicted time points are used (this implies "one-step-ahead"-predictions).
+        """
+        # model = self.model(target)
+
+        self.init_model(target)
+
+        if chains is None:
+            chains = max(2,cores)
+            
+
+        with self.model:
             # run!
+            ia_effect_loader = IAEffectLoader(self.model.IA, self.ia_effect_filenames, target.index, target.columns)
             nuts = pm.step_methods.NUTS(vars=self.params, target_accept=target_accept, max_treedepth=max_treedepth)
             steps = (([ia_effect_loader] if self.include_ia else [] ) + [nuts] )
             trace = pm.sample(samples, steps, chains=chains, cores=cores, compute_convergence_checks=False, **kwargs)
