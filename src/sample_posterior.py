@@ -14,6 +14,10 @@ combinations = list(it.product(range(len(combinations_age_eastwest)), diseases))
 
 i = int(os.environ["SGE_TASK_ID"])-1
 
+num_samples = 500
+num_chains = 4
+num_cores = num_chains
+
 model_complexity, disease = combinations[i]
 use_age, use_eastwest     = combinations_age_eastwest[model_complexity]
 prediction_region         = "bavaria" if disease=="borreliosis" else "germany"
@@ -34,11 +38,8 @@ print("training for {} in {} with model complexity {} from {} to {}\nWill create
 
 model = BaseModel(tspan, county_info, ["../data/ia_effect_samples/{}_{}.pkl".format(disease, i) for i in range(100)], include_eastwest=use_eastwest, include_demographics=use_age)
 
-# trace = model.sample_parameters(target_train[["02000"]], samples=100, tune=100)
-# pred = model.sample_predictions(target_test.index, ["02000"], trace)
-
 print("Sampling parameters on the training set.")
-trace = model.sample_parameters(target_train, samples=100, tune=100, cores=8)
+trace = model.sample_parameters(target_train, samples=num_samples, tune=100, target_accept=0.95, max_treedepth=15, chains=num_chains, cores=num_cores)
 with open(filename_params, 'wb') as f:
    pkl.dump(trace, f)
 

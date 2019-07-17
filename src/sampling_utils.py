@@ -53,6 +53,9 @@ def gaussian_bf(dx, σ):
     idx = (abs(dx) < np.float32(5)*σ)#.nonzero()
     return tt.set_subtensor(res[idx], tt.exp(np.float32(-0.5/(σ**2))*(dx[idx])**2)/np.float32(np.sqrt(2*np.pi*σ**2)))
 
+def gaussian_gram(σ):
+    return np.array([[np.power(2*np.pi*(a**2 + b**2), -0.5) for b in σ] for a in σ])
+
 def bspline_bfs(x, knots, P):
     knots = knots.astype(np.float32)
     idx = ((x>=knots[0])&(x<knots[-1]))#.nonzero()
