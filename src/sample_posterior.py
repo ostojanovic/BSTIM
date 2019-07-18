@@ -24,7 +24,7 @@ prediction_region         = "bavaria" if disease=="borreliosis" else "germany"
 
 filename_params = "../data/mcmc_samples/parameters_{}_{}_{}".format(disease, use_age, use_eastwest)
 filename_pred = "../data/mcmc_samples/predictions_{}_{}_{}.pkl".format(disease, use_age, use_eastwest)
-
+filename_model = "../data/mcmc_samples/model_{}_{}_{}.pkl".format(disease, use_age, use_eastwest)
 
 # Load data
 with open('../data/counties/counties.pkl',"rb") as f:
@@ -34,9 +34,12 @@ data_train, target_train, data_test, target_test = split_data(data)
 
 tspan = (target_train.index[0],target_train.index[-1])
 
-print("training for {} in {} with model complexity {} from {} to {}\nWill create files {} and {}".format(disease, prediction_region, model_complexity,*tspan, filename_params, filename_pred))
+print("training for {} in {} with model complexity {} from {} to {}\nWill create files {}, {} and {}".format(disease, prediction_region, model_complexity,*tspan, filename_params, filename_pred, filename_model))
 
 model = BaseModel(tspan, county_info, ["../data/ia_effect_samples/{}_{}.pkl".format(disease, i) for i in range(100)], include_eastwest=use_eastwest, include_demographics=use_age)
+
+with open(filename_model, "wb") as f:
+   pkl.dump(model.model, f)
 
 print("Sampling parameters on the training set.")
 trace = model.sample_parameters(target_train, samples=num_samples, tune=100, target_accept=0.95, max_treedepth=15, chains=num_chains, cores=num_cores)
