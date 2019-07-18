@@ -38,13 +38,13 @@ print("training for {} in {} with model complexity {} from {} to {}\nWill create
 
 model = BaseModel(tspan, county_info, ["../data/ia_effect_samples/{}_{}.pkl".format(disease, i) for i in range(100)], include_eastwest=use_eastwest, include_demographics=use_age)
 
-with open(filename_model, "wb") as f:
-   pkl.dump(model.model, f)
-
 print("Sampling parameters on the training set.")
 trace = model.sample_parameters(target_train, samples=num_samples, tune=100, target_accept=0.95, max_treedepth=15, chains=num_chains, cores=num_cores)
 # with open(filename_params, 'wb') as f:
 #    pkl.dump(trace, f)
+
+with open(filename_model, "wb") as f:
+   pkl.dump(model.model, f)
 
 with model.model:
    pm.save_trace(trace, filename_params)
