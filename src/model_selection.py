@@ -41,26 +41,3 @@ for disease in diseases:
 
 with open('../data/comparison.pkl',"wb") as f:
     pkl.dump(best_model, f)
-
-"""
-Evaluating model for campylobacter...
-Results: 
-     WAIC   pWAIC  dWAIC weight      SE   dSE var_warn
-B  420139  122.76      0      1   629.9     0        1
-A  420140  122.92   0.36      0  629.95   1.1        1
-C  420151  127.04  11.97      0  630.13  1.23        1
-
-Evaluating model for rotavirus...
-Results: 
-     WAIC   pWAIC dWAIC weight      SE   dSE var_warn
-C  338735  142.38     0      1  944.44     0        1
-A  338736  143.84  1.04      0  944.36  1.33        1
-B  338736  143.79  1.39      0   944.3  1.33        1
-
-Evaluating model for borreliosis...
-Results: 
-      WAIC  pWAIC dWAIC weight      SE   dSE var_warn
-A  30807.4   28.2     0      1  316.75     0        0
-B  30807.8  28.35   0.4      0  316.75  0.63        0
-C    30810  28.88  2.56      0  316.82  0.57        0
-"""

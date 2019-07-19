@@ -14,13 +14,19 @@ combinations = list(it.product(range(len(combinations_age_eastwest)), diseases))
 
 i = int(os.environ["SGE_TASK_ID"])-1
 
-num_samples = 500
+num_samples = 250
 num_chains = 4
 num_cores = num_chains
 
 model_complexity, disease = combinations[i]
 use_age, use_eastwest     = combinations_age_eastwest[model_complexity]
-prediction_region         = "bavaria" if disease=="borreliosis" else "germany"
+
+if disease=="borreliosis":
+   prediction_region = "bavaria"
+   use_eastwest = False
+else:
+   prediction_region = "germany"
+
 
 filename_params = "../data/mcmc_samples/parameters_{}_{}_{}".format(disease, use_age, use_eastwest)
 filename_pred = "../data/mcmc_samples/predictions_{}_{}_{}.pkl".format(disease, use_age, use_eastwest)
@@ -40,14 +46,12 @@ model = BaseModel(tspan, county_info, ["../data/ia_effect_samples/{}_{}.pkl".for
 
 print("Sampling parameters on the training set.")
 trace = model.sample_parameters(target_train, samples=num_samples, tune=100, target_accept=0.95, max_treedepth=15, chains=num_chains, cores=num_cores)
-# with open(filename_params, 'wb') as f:
-#    pkl.dump(trace, f)
 
 with open(filename_model, "wb") as f:
    pkl.dump(model.model, f)
 
 with model.model:
-   pm.save_trace(trace, filename_params)
+   pm.save_trace(trace, filename_params, overwrite=True)
 
 print("Sampling predictions on the testing set.")
 pred = model.sample_predictions(target_test.index, target_test.columns, trace)

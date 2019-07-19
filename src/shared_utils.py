@@ -319,12 +319,103 @@ fig=plt.gcf(), lower_kwargs={}, diagonal_kwargs={}, upper_kwargs={}, rasterized=
 
     return np.array(axes)
 
+def rhatplot(trace, var_names=None, var_args={}, fig=plt.gcf(), sp=GridSpec(1,1)[:,:], bound=None, ylabels=True, yticks=True, yticklabels=True, title="$\hat R$", labelsize=22):
+    if var_names == None:
+        var_names = trace.varnames
+    var_args = defaultdict(lambda: {"color": "C1", "label": None, "markersize":1}, **var_args)
+    num_groups = len(var_names)
+    tp = trace.point(0)
 
+    rhat = pm.gelman_rubin(trace, varnames=var_names)
+
+    minval = np.min([np.min(rhat[name]) for name in var_names])
+    maxval = np.max([np.max(rhat[name]) for name in var_names])
+    if bound == None:
+        bound = maxval
+    
+    bound_label = str(bound)
+    gl,gz,gt = re.match(r"([0-9]+\.)(0*)(.*)", bound_label).groups()
+    gt = str(round(int(gt)/10**(len(gt)-1)))[0]
+    bound_label = gl + gz + gt
+    
+    grid = GridSpecFromSubplotSpec(num_groups,1,sp, height_ratios=[np.prod(tp[name].shape)+2 for name in var_names])
+    axes = []
+    for j,name in enumerate(var_names):
+        ax = fig.add_subplot(grid[j], sharex=axes[0] if len(axes)>0 else None)
+        args= var_args[name]
+        
+        yticks_ = []
+        yticklabels_ = []
+        for i,idx in enumerate(itertools.product(*(range(s) for s in tp[name].shape))):
+            yticks_.append(-i)
+            yticklabels_.append("{}".format(np.squeeze(idx)))
+
+        if name in rhat:
+            ax.plot(rhat[name], yticks_, "o", markersize=args["markersize"])
+        
+        ax.set_ylim([yticks_[-1]-1, 1])
+        
+        if yticklabels==False:
+            ax.set_yticklabels([])
+        elif yticklabels==True:
+            ax.set_yticklabels(yticklabels_)
+        else:
+            ax.set_yticklabels(yticklabels)
+            
+        if yticks==False:
+            ax.set_yticks([])
+        elif yticks==True:
+            ax.set_yticks(yticks_)
+        else:
+            ax.set_yticks(yticks)
+            
+        if ylabels != False:
+            bbox = ax.get_position()
+            if ylabels==True:
+                label = args["label"]
+            else:
+                label = ylabels[j]
+            
+            if label == None:
+                label = name
+                
+            fig.text(bbox.x0-0.01, bbox.y0 + bbox.height/2, label, ha="right", va="center", fontsize=labelsize)
+        
+            
+        # ax.set_ylabel(label, rotation=0)
+        axes.append(ax)
+    axes[-1].set_xticks([1.0, bound])
+    axes[-1].set_xticklabels(["1.0", bound_label])
+    axes[-1].set_xlim([min(minval,1.0)-0.01, max(bound, maxval)+0.01])
+        
+    for ax in axes[:-1]:
+        for tick in ax.get_xticklabels():
+            tick.set_visible(False)
+        
+    axes[0].set_title(title)
+    return axes, grid
+
+# because the trace loading doesnt load energy stats properly...
+def energyplot(energies, fill_color=("C0","C1"), fill_alpha=(1,0.5), fig=plt.gcf(), sp=GridSpec(1,1)[:,:]):
+    
+    for i,energy in enumerate(energies):
+        mean_energy, trans_energy = energy - energy.mean(), np.diff(energy)
+        ax = fig.add_subplot(sp)
+        pm.kdeplot(mean_energy, label="Marginal Energy", ax=ax, shade=fill_alpha[0], kwargs_shade={"color": fill_color[0]})
+        pm.kdeplot(trans_energy, label="Energy Transition", ax=ax, shade=fill_alpha[1], kwargs_shade={"color": fill_color[1]})
+    
+        ax.plot([], label="chain {:>2} BFMI = {:.2f}".format(i, pm.bfmi({"energy":energy})), alpha=0)
+    ax.legend()
+    
+    ax.set_xticks([])
+    ax.set_yticks([])
+    
+    
 # because the default forest plot is not flexible enough #sad
 def forestplot(trace, var_names=None, var_args={}, fig=plt.gcf(), sp=GridSpec(1,1)[:,:], combine=False, credible_interval=0.94):
     if var_names == None:
         var_names = trace.varnames
-    var_args = defaultdict(lambda: {"color": "black", "label": None, "interquartile_linewidth": 2, "credible_linewidth": 1}, **var_args)
+    var_args = defaultdict(lambda: {"color": "C1", "label": None, "interquartile_linewidth": 2, "credible_linewidth": 1}, **var_args)
     
     num_groups = len(var_names)
     tp = trace.point(0)
@@ -334,11 +425,10 @@ def forestplot(trace, var_names=None, var_args={}, fig=plt.gcf(), sp=GridSpec(1,
         qs = np.quantile(var_trace, [endpoint, 1.0-endpoint, 0.25, 0.75])
         ax.plot(qs[:2],[y, y], color=args["color"], linewidth=args["credible_linewidth"])
         ax.plot(qs[2:],[y, y], color=args["color"], linewidth=args["interquartile_linewidth"])
-        ax.plot([np.mean(var_trace)], [y], "o", color=args["color"])
+        ax.plot([np.mean(var_trace)], [y], "o", color=args["color"], markersize=args["markersize"])
 
     grid = GridSpecFromSubplotSpec(num_groups,1,sp, height_ratios=[np.prod(tp[name].shape)+2 for name in var_names])
     axes = []
-    offset = 0.0
     for j,name in enumerate(var_names):
         ax = fig.add_subplot(grid[j])
         args= var_args[name]
