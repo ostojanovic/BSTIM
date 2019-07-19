@@ -144,7 +144,7 @@ class BaseModel(object):
             for feature_name,feature in features.items():
                 feature_matrix = feature(weeks, counties)
                 group_features[feature_name] = pd.DataFrame(feature_matrix[:,:], index=weeks, columns=counties).stack()
-            all_features[group_name] = pd.DataFrame(group_features)
+            all_features[group_name] = pd.DataFrame([], index=pd.MultiIndex.from_product([weeks,counties]), columns=[]) if len(group_features)==0 else pd.DataFrame(group_features)
         return all_features
 
     def init_model(self, target):
@@ -162,10 +162,10 @@ class BaseModel(object):
 
         # extract dimensions
         num_obs = np.prod(target.shape)
-        num_t_s = features["temporal_seasonal"].shape[1]
-        num_t_t = features["temporal_trend"].shape[1]
-        num_ts = features["spatiotemporal"].shape[1]
-        num_s = features["spatial"].shape[1]
+        num_t_s = T_S.shape[1]
+        num_t_t = T_T.shape[1]
+        num_ts = TS.shape[1]
+        num_s = S.shape[1]
 
 
         with pm.Model() as self.model:
