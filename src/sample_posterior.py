@@ -1,16 +1,4 @@
-# from ModelInstance import ModelInstance
-from shared_utils import load_data, split_data
-from collections import OrderedDict
-import pickle as pkl, time, numpy as np, scipy as sp, pandas as pd
-import pymc3 as pm
-import itertools as it
-import os
-import isoweek
-from BaseModel import BaseModel
-
-diseases    = ["campylobacter", "rotavirus", "borreliosis"]
-combinations_age_eastwest = [(False,False),(False,True),(True,True)]
-combinations = list(it.product(range(len(combinations_age_eastwest)), diseases))
+import config
 
 i = int(os.environ["SGE_TASK_ID"])-1
 
@@ -26,7 +14,6 @@ if disease=="borreliosis":
    use_eastwest = False
 else:
    prediction_region = "germany"
-
 
 filename_params = "../data/mcmc_samples/parameters_{}_{}_{}".format(disease, use_age, use_eastwest)
 filename_pred = "../data/mcmc_samples/predictions_{}_{}_{}.pkl".format(disease, use_age, use_eastwest)

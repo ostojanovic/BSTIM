@@ -1,10 +1,5 @@
-import pickle as pkl
-import numpy as np
-from shared_utils import dss, deviance_negbin, load_data, split_data, parse_yearweek
-from collections import OrderedDict
-import pandas as pd
+import config
 
-diseases = ["campylobacter", "rotavirus", "borreliosis"]
 measures = {
     "deviance": (lambda target_val, pred_val, alpha_val: deviance_negbin(target_val, pred_val, alpha_val)),
     "DS score": (lambda target_val, pred_val, alpha_val: dss(target_val, pred_val, pred_val+pred_val**2/alpha_val))
@@ -12,7 +7,6 @@ measures = {
 
 with open('../data/comparison.pkl',"rb") as f:
     best_model=pkl.load(f)
-
 
 with open('../data/counties/counties.pkl',"rb") as f:
     counties = pkl.load(f)
@@ -22,11 +16,9 @@ summary = OrderedDict()
 for i,disease in enumerate(diseases):
     use_age = best_model[disease]["use_age"]
     use_eastwest = best_model[disease]["use_eastwest"]
-    filename_pred = "../data/mcmc_samples/predictions_{}_{}_{}.pkl".format(disease, use_age, use_eastwest)
     prediction_region = "bavaria" if disease=="borreliosis" else "germany"
 
-    with open(filename_pred,"rb") as f:
-        res = pkl.load(f)
+    res = load_pred(disease, use_age, use_eastwest)
 
     mean_predicted_μ = np.reshape(res['μ'],(800,104,-1)).mean(axis=0)
     mean_predicted_α = res['α'].mean()

@@ -1,10 +1,19 @@
-from shared_utils import load_data, split_data
-import pickle as pkl
-import pymc3 as pm
+from config import *
+from matplotlib import pyplot as plt
+plt.style.use('ggplot')
+import datetime, pickle as pkl, numpy as np, matplotlib, pandas as pd, pymc3 as pm
+from pymc3.stats import quantiles
+from shared_utils import *
+from sampling_utils import *
+from matplotlib import rc
+from collections import OrderedDict
+import isoweek
+import gc
+import matplotlib.patheffects as PathEffects
+from matplotlib.gridspec import SubplotSpec, GridSpec, GridSpecFromSubplotSpec
 from BaseModel import BaseModel
+import os
 
-diseases    = ["campylobacter", "rotavirus", "borreliosis"]
-combinations_age_eastwest = [(False,False),(False,True),(True,True)]
 age_eastwest_by_name = dict(zip(["A","B","C"],combinations_age_eastwest))
 
 with open('../data/counties/counties.pkl',"rb") as f:
@@ -14,19 +23,22 @@ results = {}
 best_model = {}
 for disease in diseases:
     print("Evaluating model for {}...".format(disease))
-    prediction_region = "bavaria" if disease=="borreliosis" else "germany"
+    if disease=="borreliosis":
+       prediction_region = "bavaria"
+       use_eastwest = False
+    else:
+       prediction_region = "germany"
+       
     data = load_data(disease, prediction_region, county_info)
     data_train, target_train, data_test, target_test = split_data(data)
     tspan = (target_train.index[0],target_train.index[-1])
     models = {}
     for (name,(use_age,use_eastwest)) in age_eastwest_by_name.items():
         # load sample trace
-        filename_pred = "../data/mcmc_samples/parameters_{}_{}_{}.pkl".format(disease, use_age, use_eastwest)
-        with open(filename_pred, 'rb') as f:
-           trace = pkl.load(f)
+        trace = load_trace(disease, use_age, use_eastwest)
         
-        # construct model
-        model = BaseModel(tspan, county_info, ["../data/ia_effect_samples/{}_{}.pkl".format(disease, i) for i in range(100)], include_eastwest=use_eastwest, include_demographics=use_age).model(target_train)
+        # load model
+        model = load_model(disease, use_age, use_eastwest)
         
         model.name = name
         models[model] = trace
@@ -34,6 +46,7 @@ for disease in diseases:
     results[disease] = pm.compare(models,ic="WAIC")
     print("Results: ")
     print(results[disease])
+    del models
     
     name = results[disease].iloc[0].name
     use_age, use_eastwest = age_eastwest_by_name[name]

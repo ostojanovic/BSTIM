@@ -1,23 +1,32 @@
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta, time
-from collections import OrderedDict, defaultdict
-from shapely.geometry import Point, Polygon
+from config import *
+from collections import defaultdict
+from shapely.geometry import Polygon
 from shapely.ops import cascaded_union
 from descartes import PolygonPatch
 import seaborn as sns
 from matplotlib.collections import PatchCollection
 import matplotlib.cm
 from matplotlib.axes import Axes
-from matplotlib.gridspec import GridSpec, GridSpecFromSubplotSpec
 import matplotlib.transforms as transforms
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-import re, isoweek
-import pymc3 as pm
+import re
 import theano.tensor as tt
 import scipy.stats
-import os, itertools
+from itertools import product
+from matplotlib import pyplot as plt
+plt.style.use('ggplot')
+import datetime, pickle as pkl, numpy as np, matplotlib, pandas as pd, pymc3 as pm
+from pymc3.stats import quantiles
+from shared_utils import *
+from sampling_utils import *
+from matplotlib import rc
+from collections import OrderedDict
+import isoweek
+import gc
+import matplotlib.patheffects as PathEffects
+from matplotlib.gridspec import SubplotSpec, GridSpec, GridSpecFromSubplotSpec
+from BaseModel import BaseModel
+import itertools as it
+import os
 
 yearweek_regex = re.compile(r"([0-9]+)-KW([0-9]+)")
 def _parse_yearweek(yearweek):
@@ -197,7 +206,7 @@ def make_axes_stack(ax, num, xoff, yoff, fig=None, down=True, sharex=False, shar
             fig = ax.figure
         ax.set_zorder(num if down else 0)
         axes = [ax]
-    elif isinstance(ax, gridspec.SubplotSpec):
+    elif isinstance(ax, SubplotSpec):
         if fig is None:
             fig = plt.gcf()
         bbox = ax.get_position(fig)
@@ -223,13 +232,13 @@ def set_file_permissions(filename, uid, gid, permissions=0o660):
     os.chown(filename, uid, gid)
 
 
-def pairplot(df, labels={}, diagonal_kind="kde", lower_kind="kde", upper_kind="empty", spec=gridspec.GridSpec(1,1)[0],
+def pairplot(df, labels={}, diagonal_kind="kde", lower_kind="kde", upper_kind="empty", spec=GridSpec(1,1)[0],
 xlabelrotation=0, ylabelrotation=90, ylabels=True, xlabels=True, xtickrotation=60,
 fig=plt.gcf(), lower_kwargs={}, diagonal_kwargs={}, upper_kwargs={}, rasterized=False, tick_args={}):
     N = len(df.columns)
     axes = np.empty((N,N),dtype=object)
 
-    g = gridspec.GridSpecFromSubplotSpec(N,N, subplot_spec=spec)
+    g = GridSpecFromSubplotSpec(N,N, subplot_spec=spec)
     fake_axes = {}
     for y in range(N):
         fake_axes[(y,0)] = plt.Subplot(fig, g[y,0])
@@ -346,7 +355,7 @@ def rhatplot(trace, var_names=None, var_args={}, fig=plt.gcf(), sp=GridSpec(1,1)
         
         yticks_ = []
         yticklabels_ = []
-        for i,idx in enumerate(itertools.product(*(range(s) for s in tp[name].shape))):
+        for i,idx in enumerate(product(*(range(s) for s in tp[name].shape))):
             yticks_.append(-i)
             yticklabels_.append("{}".format(np.squeeze(idx)))
 
@@ -437,7 +446,7 @@ def forestplot(trace, var_names=None, var_args={}, fig=plt.gcf(), sp=GridSpec(1,
         yticklabels = []
         # plot label
         # plot variable stats
-        for i,idx in enumerate(itertools.product(*(range(s) for s in tp[name].shape))):
+        for i,idx in enumerate(product(*(range(s) for s in tp[name].shape))):
             yticks.append(-i)
             yticklabels.append("{}".format(np.squeeze(idx)))
             if combine:
@@ -461,3 +470,28 @@ def forestplot(trace, var_names=None, var_args={}, fig=plt.gcf(), sp=GridSpec(1,
         # ax.set_frame_on(False)
         axes.append(ax)
     return axes, grid
+
+
+def load_model(disease, use_age, use_eastwest):
+    filename_model = "../data/mcmc_samples/model_{}_{}_{}.pkl".format(disease, use_age, use_eastwest)
+
+    with open(filename_model,"rb") as f:
+        model = pkl.load(f)
+    return model
+
+def load_trace(disease, use_age, use_eastwest):
+    filename_params = "../data/mcmc_samples/parameters_{}_{}_{}".format(disease, use_age, use_eastwest)
+
+    model = load_model(disease, use_age, use_eastwest)
+    with model:
+        trace = pm.load_trace(filename_params)
+    
+    del model
+    return trace
+
+def load_pred(disease, use_age, use_eastwest):
+    # Load our prediction samples
+    filename_pred = "../data/mcmc_samples/predictions_{}_{}_{}.pkl".format(disease, use_age, use_eastwest)
+    with open(filename_pred,"rb") as f:
+        res = pkl.load(f)
+    return res
