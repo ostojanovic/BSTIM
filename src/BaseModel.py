@@ -109,7 +109,7 @@ class BaseModel(object):
     * interaction effects (functions of distance in time and space relative to each datapoint)
     """
 
-    def __init__(self, trange, counties, ia_effect_filenames, num_ia=16, model=None, include_ia=True, include_eastwest=True, include_demographics=True, include_temporal=True):
+    def __init__(self, trange, counties, ia_effect_filenames, num_ia=16, model=None, include_ia=True, include_eastwest=True, include_demographics=True, include_temporal=True, orthogonalize=False):
         self.county_info = counties
         self.ia_effect_filenames = ia_effect_filenames
         self.num_ia = num_ia if include_ia else 0
@@ -129,12 +129,12 @@ class BaseModel(object):
                 "exposure": {"exposure": SpatioTemporalYearlyDemographicsFeature(self.county_info, "total", 1.0/100000)}
             }
         
-        
-        # transformation to orthogonalize IA features
-        T = np.linalg.inv(np.linalg.cholesky(gaussian_gram([6.25,12.5,25.0,50.0]))).T
-        self.Q = np.zeros((16,16), dtype=np.float32)
-        for i in range(4):
-            self.Q[i*4:(i+1)*4, i*4:(i+1)*4] = T
+        self.Q = np.eye(16, dtype=np.float32)
+        if orthogonalize:
+            # transformation to orthogonalize IA features
+            T = np.linalg.inv(np.linalg.cholesky(gaussian_gram([6.25,12.5,25.0,50.0]))).T
+            for i in range(4):
+                self.Q[i*4:(i+1)*4, i*4:(i+1)*4] = T
 
 
     def evaluate_features(self, weeks, counties):
@@ -189,8 +189,8 @@ class BaseModel(object):
 
             # calculate mean rates
             μ = pm.Deterministic("μ", 
-                (1.0+tt.exp(IA_ef))*
-                tt.exp(tt.dot(T_S, W_t_s) + tt.dot(T_T, W_t_t) + tt.dot(TS, W_ts) + tt.dot(S, W_s) + log_exposure)
+                # (1.0+tt.exp(IA_ef))*
+                tt.exp(IA_ef + tt.dot(T_S, W_t_s) + tt.dot(T_T, W_t_t) + tt.dot(TS, W_ts) + tt.dot(S, W_s) + log_exposure)
             )
 
             # constrain to observations
@@ -245,11 +245,12 @@ class BaseModel(object):
         num_predictions = len(target_weeks)*len(target_counties)
         num_parameter_samples = α.size
         y = np.zeros((num_parameter_samples, num_predictions), dtype=int)
+        μ = np.zeros((num_parameter_samples, num_predictions), dtype=np.float32)
 
         for i in range(num_parameter_samples):
-            idx = np.random.choice(num_parameter_samples)
-            IA_ef = np.dot(np.dot(ia_l.samples[np.random.choice(len(ia_l.samples))], self.Q), W_ia[idx])
-            μ = (1.0+np.exp(IA_ef))*np.exp(np.dot(T_S, W_t_s[idx]) + np.dot(T_T, W_t_t[idx]) + np.dot(TS, W_ts[idx]) + np.dot(S, W_s[idx]) + log_exposure)
-            y[i,:] = pm.NegativeBinomial.dist(mu=μ, alpha=α[idx]).random()
+            IA_ef = np.dot(np.dot(ia_l.samples[np.random.choice(len(ia_l.samples))], self.Q), W_ia[i])
+            # μ[i,:] = (1.0+np.exp(IA_ef))*np.exp(np.dot(T_S, W_t_s[i]) + np.dot(T_T, W_t_t[i]) + np.dot(TS, W_ts[i]) + np.dot(S, W_s[i]) + log_exposure)
+            μ[i,:] = np.exp(IA_ef + np.dot(T_S, W_t_s[i]) + np.dot(T_T, W_t_t[i]) + np.dot(TS, W_ts[i]) + np.dot(S, W_s[i]) + log_exposure)
+            y[i,:] = pm.NegativeBinomial.dist(mu=μ[i,:], alpha=α[i]).random()
 
-        return {"y": y}
+        return {"y": y, "μ": μ, "α": α}

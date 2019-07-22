@@ -1,4 +1,7 @@
-import config
+from config import *
+from shared_utils import *
+from BaseModel import BaseModel
+import pymc3 as pm, pickle as pkl, os
 
 i = int(os.environ["SGE_TASK_ID"])-1
 

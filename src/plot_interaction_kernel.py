@@ -1,18 +1,16 @@
-
+from config import *
+from shared_utils import *
+import matplotlib
 from matplotlib import pyplot as plt
-plt.style.use('ggplot')
-import datetime, pickle as pkl, numpy as np, matplotlib, pandas as pd, pymc3 as pm
-from pymc3.stats import quantiles
-from shared_utils import load_data, split_data
-from sampling_utils import *
-from matplotlib import rc
-import isoweek
-from BaseModel import BaseModel
+plt.style.use("ggplot")
 matplotlib.rcParams['text.usetex'] = True
 matplotlib.rcParams['text.latex.unicode'] = True
 plt.rcParams["font.family"] = "Bitstream Charter"
-diseases = ["campylobacter", "rotavirus", "borreliosis"]
-prediction_regions = ["germany", "bavaria"]
+import matplotlib.patheffects as PathEffects
+import seaborn as sns
+import pickle as pkl
+import numpy as np
+from sampling_utils import *
 
 with open('../data/comparison.pkl',"rb") as f:
     best_model=pkl.load(f)
@@ -43,11 +41,8 @@ for i,disease in enumerate(diseases):
     use_age = best_model[disease]["use_age"]
     use_eastwest = best_model[disease]["use_eastwest"]
     prediction_region         = "bavaria" if disease=="borreliosis" else "germany"
-    filename_pred = "../data/mcmc_samples/parameters_{}_{}_{}.pkl".format(disease, use_age, use_eastwest)
-
-
-    with open(filename_pred,"rb") as f:
-        trace = pkl.load(f)
+    
+    trace = load_trace(disease, use_age, use_eastwest)
 
     kernel_samples = res.dot(trace["W_ia"].T)
 
@@ -55,20 +50,20 @@ for i,disease in enumerate(diseases):
     K_samp1 = kernel_samples[:,:,np.random.randint(kernel_samples.shape[-1])]
     K_samp2 = kernel_samples[:,:,np.random.randint(kernel_samples.shape[-1])]
 
-    vmax = np.max([K_mean.max(),K_samp1.max(),K_samp2.max()])
-    cNorm = matplotlib.colors.Normalize(vmin=0, vmax=vmax)
-    scalarMap = matplotlib.cm.ScalarMappable(norm=cNorm, cmap="viridis")
+    vmax = np.max([K_mean.max(),K_samp1.max(),K_samp2.max(),-K_mean.max(),-K_samp1.max(),-K_samp2.max()])
+    cNorm = matplotlib.colors.Normalize(vmin=-vmax, vmax=vmax)
+    scalarMap = matplotlib.cm.ScalarMappable(norm=cNorm, cmap="RdBu_r")
     scalarMap.set_array([])
 
 
     ax_mean = fig.add_subplot(grid[0,i*2])
-    ax_mean.contour(ts/(3600*24), (locs-loc0)[:,1]*111, K_mean, vmin=0, vmax=vmax)
+    ax_mean.contour(ts/(3600*24), (locs-loc0)[:,1]*111, K_mean, cmap="RdBu_r", vmin=-vmax, vmax=vmax)
 
     ax_sample1 = fig.add_subplot(grid[1,i*2],sharex=ax_mean)
-    ax_sample1.contour(ts/(3600*24), (locs-loc0)[:,1]*111, K_samp1, vmin=0, vmax=vmax)
+    ax_sample1.contour(ts/(3600*24), (locs-loc0)[:,1]*111, K_samp1, cmap="RdBu_r", vmin=-vmax, vmax=vmax)
 
     ax_sample2 = fig.add_subplot(grid[2,i*2],sharex=ax_mean)
-    ax_sample2.contour(ts/(3600*24), (locs-loc0)[:,1]*111, K_samp2, vmin=0, vmax=vmax)
+    ax_sample2.contour(ts/(3600*24), (locs-loc0)[:,1]*111, K_samp2, cmap="RdBu_r", vmin=-vmax, vmax=vmax)
 
     ax_c = fig.add_subplot(grid[:,i*2+1])
     # shift colorbar by 2% to the left

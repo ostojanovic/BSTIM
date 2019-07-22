@@ -8,6 +8,7 @@
 #$ -wd /net/store/ni/projects/BSTIM/src/
 #$ -e /net/store/ni/projects/BSTIM/logs/e_$TASK_ID.txt
 #$ -o /net/store/ni/projects/BSTIM/logs/o_$TASK_ID.txt
+#$ -pe default 4
 
 echo "Running job ${JOB_ID}, task ${SGE_TASK_ID} on `hostname`."
 

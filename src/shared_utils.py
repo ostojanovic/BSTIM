@@ -107,9 +107,9 @@ def quantile_negbin(qs, mean, dispersion=0):
 
 def deviance_negbin(y, μ, α, saturated="NegativeBinomial"):
     if saturated=="NegativeBinomial":
-        logp_sat = tt.where(y==0, np.zeros_like(y,dtype=np.float64), pm.NegativeBinomial.dist(mu=y, alpha=α).logp(y))
+        logp_sat = tt.where(y==0, np.zeros_like(y,dtype=np.float32), pm.NegativeBinomial.dist(mu=y, alpha=α).logp(y))
     elif saturated=="Poisson":
-        logp_sat = tt.where(y==0, np.zeros_like(y,dtype=np.float64), pm.Poisson.dist(mu=y).logp(y))
+        logp_sat = tt.where(y==0, np.zeros_like(y,dtype=np.float32), pm.Poisson.dist(mu=y).logp(y))
     else:
         raise NotImplementedError()
     logp_mod = pm.NegativeBinomial.dist(mu=μ, alpha=α).logp(y)

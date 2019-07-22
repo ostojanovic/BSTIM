@@ -21,9 +21,12 @@ matplotlib.rcParams['axes.titlesize'] = 22
 diseases = ["campylobacter", "rotavirus", "borreliosis"]
 prediction_regions = ["germany", "bavaria"]
 
+with open('../data/comparison.pkl',"rb") as f:
+    best_model=pkl.load(f)
+    
 for disease in diseases:
-    use_age = True#best_model[disease]["use_age"]
-    use_eastwest = True#best_model[disease]["use_eastwest"]
+    use_age = best_model[disease]["use_age"]
+    use_eastwest = best_model[disease]["use_eastwest"]
     prediction_region         = "bavaria" if disease=="borreliosis" else "germany"
     filename_params = "../data/mcmc_samples/parameters_{}_{}_{}".format(disease, use_age, use_eastwest)
     filename_model = "../data/mcmc_samples/model_{}_{}_{}.pkl".format(disease, use_age, use_eastwest)

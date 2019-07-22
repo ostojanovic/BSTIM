@@ -1,18 +1,9 @@
+from config import *
+from shared_utils import *
 import pickle as pkl
-import pandas as pd
 import numpy as np
-import scipy.stats
-from shared_utils import load_data, split_data, parse_yearweek, quantile_negbin
-from pymc3.stats import quantiles
 from collections import OrderedDict
-import matplotlib
 from matplotlib import pyplot as plt
-plt.style.use("ggplot")
-from matplotlib import rc
-matplotlib.rcParams['text.usetex'] = True
-matplotlib.rcParams['text.latex.unicode'] = True
-plt.rcParams["font.family"] = "Bitstream Charter"
-import matplotlib.patheffects as PathEffects
 
 diseases = ["campylobacter", "rotavirus", "borreliosis"]
 
@@ -74,7 +65,12 @@ for i,disease in enumerate(diseases):
     # Load data
     use_age = best_model[disease]["use_age"]
     use_eastwest = best_model[disease]["use_eastwest"]
-    prediction_region = "bavaria" if disease=="borreliosis" else "germany"
+    if disease=="borreliosis":
+        prediction_region = "bavaria"
+        use_eastwest = False
+    else:
+        prediction_region = "germany"
+        
     data = load_data(disease, prediction_region, counties)
     data = data[data.index < parse_yearweek("2018-KW1")]
     if disease == "borreliosis":
@@ -83,11 +79,9 @@ for i,disease in enumerate(diseases):
     county_ids = target.columns
 
     # Load our prediction samples
-    filename_pred = "../data/mcmc_samples/predictions_{}_{}_{}.pkl".format(disease, use_age, use_eastwest)
-    with open(filename_pred,"rb") as f:
-        res = pkl.load(f)
+    res = load_pred(disease, use_age, use_eastwest)
 
-    prediction_samples = np.reshape(res['Y'],(800,104,-1))
+    prediction_samples = np.reshape(res['y'],(res["y"].shape[0],104,-1))
     prediction_quantiles = quantiles(prediction_samples,(5,25,75,95))
 
     prediction_mean = pd.DataFrame(data=np.mean(prediction_samples,axis=0), index=target.index, columns=target.columns)
@@ -138,6 +132,6 @@ for i,disease in enumerate(diseases):
         bbox_transform = plt.gcf().transFigure )
     fig.text(0.5, 0.02, "Time [calendar weeks]", ha='center', fontsize=22)
     fig.text(0.01, 0.46, "Reported/predicted infections", va='center', rotation='vertical', fontsize=22)
-    # plt.savefig("../figures/curves_{}_appendix.pdf".format(disease))
+    plt.savefig("../figures/curves_{}_appendix.pdf".format(disease))
 
 plt.show()

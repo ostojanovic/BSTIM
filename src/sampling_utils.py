@@ -3,6 +3,7 @@ import pymc3 as pm, theano, theano.tensor as tt, numpy as np, pandas as pd, isow
 from collections import OrderedDict
 from matplotlib import pyplot as pp
 from geo_utils import jacobian_sq
+theano.config.compute_test_value = 'off' # BUG: may throw an error for flat RVs
 
 
 def uniform_times_by_week(weeks, n=500):

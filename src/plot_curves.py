@@ -1,4 +1,9 @@
-import config
+from config import *
+from shared_utils import *
+import pickle as pkl
+import numpy as np
+from collections import OrderedDict
+from matplotlib import pyplot as plt
 
 with open('../data/counties/counties.pkl',"rb") as f:
     counties = pkl.load(f)
@@ -28,7 +33,12 @@ for i,disease in enumerate(diseases):
     # Load data
     use_age = best_model[disease]["use_age"]
     use_eastwest = best_model[disease]["use_eastwest"]
-    prediction_region = "bavaria" if disease=="borreliosis" else "germany"
+    if disease=="borreliosis":
+        prediction_region = "bavaria"
+        use_eastwest = False
+    else:
+        prediction_region = "germany"
+        
     data = load_data(disease, prediction_region, counties)
     data = data[data.index < parse_yearweek("2018-KW1")]
     if disease == "borreliosis":
@@ -38,7 +48,7 @@ for i,disease in enumerate(diseases):
 
     res = load_pred(disease, use_age, use_eastwest)
 
-    prediction_samples = np.reshape(res['Y'], (800,104,-1))
+    prediction_samples = np.reshape(res['y'], (res['y'].shape[0],104,-1))
     prediction_quantiles = quantiles(prediction_samples, (5,25,75,95))
 
     prediction_mean = pd.DataFrame(data=np.mean(prediction_samples, axis=0), index=target.index, columns=target.columns)

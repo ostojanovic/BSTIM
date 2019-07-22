@@ -1,4 +1,7 @@
-import config
+from config import *
+from shared_utils import *
+import pickle as pkl
+from collections import OrderedDict
 
 measures = {
     "deviance": (lambda target_val, pred_val, alpha_val: deviance_negbin(target_val, pred_val, alpha_val)),
@@ -16,12 +19,13 @@ summary = OrderedDict()
 for i,disease in enumerate(diseases):
     use_age = best_model[disease]["use_age"]
     use_eastwest = best_model[disease]["use_eastwest"]
-    prediction_region = "bavaria" if disease=="borreliosis" else "germany"
+    if disease=="borreliosis":
+        prediction_region = "bavaria"
+        use_eastwest = False
+    else:
+        prediction_region = "germany"
 
     res = load_pred(disease, use_age, use_eastwest)
-
-    mean_predicted_μ = np.reshape(res['μ'],(800,104,-1)).mean(axis=0)
-    mean_predicted_α = res['α'].mean()
 
     with open('../data/hhh4_results_{}.pkl'.format(disease),"rb") as f:
         res_hhh4 = pkl.load(f)
@@ -33,22 +37,23 @@ for i,disease in enumerate(diseases):
     _, _, _, target = split_data(data)
     county_ids = target.columns
 
-    models = {
-        "our model": (pd.DataFrame(mean_predicted_μ, columns=target.columns, index=target.index), pd.Series(np.repeat(mean_predicted_α, target.shape[0]), index=target.index)),
-        "hhh4 model": (res_hhh4["test prediction mean"], pd.Series(np.repeat(1.0/res_hhh4["test alpha"], target.shape[0]), index=target.index)),
-    }
+    summary = {}
+    # hhh4
 
-    assert np.all(models["our model"][0].columns == models["hhh4 model"][0].columns), "Column names don't match!"
-
-    summary[disease] = {}
-    for model,(prediction, alpha) in models.items():
-        summary[disease][model] = {}
-
+    for name in ["our model", "hhh4 model"]:
+        summary[name] = {}
         for measure,f in measures.items():
-            measure_df = pd.DataFrame(f(target.values.ravel(), prediction.values.ravel(), alpha.values.repeat(target.shape[1])).reshape(target.shape), index=target.index, columns=target.columns)
-            summary[disease][model][measure] = measure_df
-            summary[disease][model][measure + " mean"] = np.mean(measure_df.mean())
-            summary[disease][model][measure + " sd"] = np.std(measure_df.mean())
+            print("Evaluating {} for disease {}, measure {}".format(name, disease, measure))
+            if name == "our model":
+                measure_df = pd.DataFrame(f(target.values.astype(np.float32).reshape((1,-1)).repeat(res["y"].shape[0], axis=0), res["μ"].astype(np.float32), res["α"].astype(np.float32).reshape((-1,1))).mean(axis=0).reshape(target.shape), index=target.index, columns=target.columns)
+            else:
+                measure_df = pd.DataFrame(f(target.values.astype(np.float32).ravel(), res_hhh4["test prediction mean"].values.astype(np.float32).ravel(), np.float32(1.0/res_hhh4["test alpha"])).reshape(target.shape), index=target.index, columns=target.columns)
+        
+            summary[name][measure] = measure_df
+            summary[name][measure + " mean"] = np.mean(measure_df.mean())
+            summary[name][measure + " sd"] = np.std(measure_df.mean())
 
-with open('../data/measures_summary.pkl',"wb") as f:
-    pkl.dump(summary, f)
+    with open("../data/measures_{}_summary.pkl".format(disease),"wb") as f:
+        pkl.dump(summary, f)
+    
+    del summary
