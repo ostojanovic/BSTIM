@@ -2,7 +2,9 @@ from matplotlib import pyplot as plt
 plt.style.use('ggplot')
 import datetime, pickle as pkl, numpy as np, matplotlib, pandas as pd, pymc3 as pm
 from pymc3.stats import quantiles
-from shared_utils import load_data, split_data, forestplot
+from config import *
+from plot_utils import *
+from shared_utils import *
 from sampling_utils import *
 from matplotlib import rc
 import isoweek
@@ -50,7 +52,7 @@ for disease in diseases:
 
     forestplot(trace, var_names=["W_ia"], var_args=W_ia_args, fig=fig, sp=grid[0])
     forestplot(trace, var_names=["W_t_t", "W_t_s", "W_ts", "W_s"], var_args=other_args, fig=fig, sp=grid[1])
-    plt.savefig("../figures/forest_{}.svg".format(disease))
+    plt.savefig("../figures/forest_{}.pdf".format(disease))
 
     del model
     del trace

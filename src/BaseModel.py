@@ -218,7 +218,8 @@ class BaseModel(object):
             nuts = pm.step_methods.NUTS(vars=self.params, target_accept=target_accept, max_treedepth=max_treedepth)
             steps = (([ia_effect_loader] if self.include_ia else [] ) + [nuts] )
             trace = pm.sample(samples, steps, chains=chains, cores=cores, compute_convergence_checks=False, **kwargs)
-           
+            # trace = pm.sample(0, steps, tune=samples+tune, discard_tuned_samples=False, chains=chains, cores=cores, compute_convergence_checks=False, **kwargs)
+            # trace = trace[tune:]
         return trace
 
     def sample_predictions(self, target_weeks, target_counties, parameters, init="auto"):

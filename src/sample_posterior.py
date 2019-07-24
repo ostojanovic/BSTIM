@@ -18,9 +18,9 @@ if disease=="borreliosis":
 else:
    prediction_region = "germany"
 
-filename_params = "../data/mcmc_samples/parameters_{}_{}_{}".format(disease, use_age, use_eastwest)
-filename_pred = "../data/mcmc_samples/predictions_{}_{}_{}.pkl".format(disease, use_age, use_eastwest)
-filename_model = "../data/mcmc_samples/model_{}_{}_{}.pkl".format(disease, use_age, use_eastwest)
+filename_params = "../data/mcmc_samples_backup/parameters_{}_{}_{}".format(disease, use_age, use_eastwest)
+filename_pred = "../data/mcmc_samples_backup/predictions_{}_{}_{}.pkl".format(disease, use_age, use_eastwest)
+filename_model = "../data/mcmc_samples_backup/model_{}_{}_{}.pkl".format(disease, use_age, use_eastwest)
 
 # Load data
 with open('../data/counties/counties.pkl',"rb") as f:

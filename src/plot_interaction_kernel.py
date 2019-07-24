@@ -1,4 +1,5 @@
 from config import *
+from plot_utils import *
 from shared_utils import *
 import matplotlib
 from matplotlib import pyplot as plt
@@ -21,7 +22,7 @@ C3 = C2#"#808080"
 
 fig = plt.figure(figsize=(12,9))
 #fig.suptitle("Learned interaction kernels and temporal contributions", fontsize=20)
-grid = plt.GridSpec(3, 2*len(diseases), top=0.92, bottom=0.1, left=0.09, right=0.97, hspace=0.28, wspace=0.32, width_ratios=[10,1,10,1,10,1])
+grid = plt.GridSpec(3, 2*len(diseases), top=0.92, bottom=0.1, left=0.09, right=0.97, hspace=0.28, wspace=0.37, width_ratios=[10,1,10,1,10,1])
 
 loc0 = np.array([[11.0767, 49.4521]])
 locs = np.hstack((np.zeros(200).reshape((-1,1)), np.linspace(-0.67,0.67,200).reshape((-1,1)))) + loc0
@@ -57,13 +58,13 @@ for i,disease in enumerate(diseases):
 
 
     ax_mean = fig.add_subplot(grid[0,i*2])
-    ax_mean.contour(ts/(3600*24), (locs-loc0)[:,1]*111, K_mean, cmap="RdBu_r", vmin=-vmax, vmax=vmax)
+    ax_mean.contourf(ts/(3600*24), (locs-loc0)[:,1]*111, K_mean, 20, cmap="RdBu_r", vmin=-vmax, vmax=vmax)
 
     ax_sample1 = fig.add_subplot(grid[1,i*2],sharex=ax_mean)
-    ax_sample1.contour(ts/(3600*24), (locs-loc0)[:,1]*111, K_samp1, cmap="RdBu_r", vmin=-vmax, vmax=vmax)
+    ax_sample1.contourf(ts/(3600*24), (locs-loc0)[:,1]*111, K_samp1, 20, cmap="RdBu_r", vmin=-vmax, vmax=vmax)
 
     ax_sample2 = fig.add_subplot(grid[2,i*2],sharex=ax_mean)
-    ax_sample2.contour(ts/(3600*24), (locs-loc0)[:,1]*111, K_samp2, cmap="RdBu_r", vmin=-vmax, vmax=vmax)
+    ax_sample2.contourf(ts/(3600*24), (locs-loc0)[:,1]*111, K_samp2, 20, cmap="RdBu_r", vmin=-vmax, vmax=vmax)
 
     ax_c = fig.add_subplot(grid[:,i*2+1])
     # shift colorbar by 2% to the left
@@ -90,4 +91,4 @@ for i,disease in enumerate(diseases):
     fig.text(0,1+0.025, r"$\textbf{"+str(i+1)+r"C}$", fontsize=22, transform=ax_sample2.transAxes)
 
 plt.show()
-# fig.savefig("../figures/interaction_kernels.pdf")
+fig.savefig("../figures/interaction_kernels.pdf")

@@ -1,9 +1,10 @@
+from matplotlib import pyplot as plt
 from config import *
 from shared_utils import *
+from plot_utils import *
 import pickle as pkl
 import numpy as np
 from collections import OrderedDict
-from matplotlib import pyplot as plt
 
 diseases = ["campylobacter", "rotavirus", "borreliosis"]
 
@@ -134,4 +135,4 @@ for i,disease in enumerate(diseases):
     fig.text(0.01, 0.46, "Reported/predicted infections", va='center', rotation='vertical', fontsize=22)
     plt.savefig("../figures/curves_{}_appendix.pdf".format(disease))
 
-plt.show()
+# plt.show()

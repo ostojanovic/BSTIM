@@ -1,4 +1,5 @@
 from config import *
+from plot_utils import *
 from shared_utils import *
 import pickle as pkl
 import numpy as np

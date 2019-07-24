@@ -1,4 +1,9 @@
-import config
+from config import *
+from shared_utils import *
+from plot_utils import *
+from matplotlib import pyplot as plt
+from matplotlib.gridspec import SubplotSpec, GridSpec, GridSpecFromSubplotSpec
+import gc
 
 name = {
     "campylobacter": "campylob.", 
@@ -34,4 +39,4 @@ for i,disease in enumerate(diseases):
     del trace
     gc.collect()
     
-plt.savefig("../figures/rhat.svg")
+plt.savefig("../figures/rhat.pdf")
