@@ -50,8 +50,14 @@ for disease in diseases:
         "W_s": {"color": "C1", "label": "$W_{E/W}$", "markersize":4, "interquartile_linewidth": 2, "credible_linewidth": 1},
     }
 
-    forestplot(trace, var_names=["W_ia"], var_args=W_ia_args, fig=fig, sp=grid[0])
-    forestplot(trace, var_names=["W_t_t", "W_t_s", "W_ts", "W_s"], var_args=other_args, fig=fig, sp=grid[1])
+    ia_range = range(1,17)
+    t_t_range = range(17,22)
+    t_s_range = range(22,26)
+    ts_range = range(26,29)
+    s_range = range(29,30)
+
+    forestplot(trace, var_labels=[("W_ia", ia_range)], var_args=W_ia_args, fig=fig, sp=grid[0])
+    forestplot(trace, var_labels=[("W_t_t", t_t_range), ("W_t_s", t_s_range), ("W_ts", ts_range), ("W_s", s_range)], var_args=other_args, fig=fig, sp=grid[1])
     plt.savefig("../figures/forest_{}.pdf".format(disease))
 
     del model

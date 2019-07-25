@@ -26,6 +26,9 @@ for i,disease in enumerate(diseases):
     params_categorical = pm.trace_to_dataframe(trace, varnames=["W_ts","W_s"])
     params_alpha = pm.trace_to_dataframe(trace, varnames=["α"])
 
+    if "W_s__0" not in params_categorical.columns:
+        params_categorical["W_s__0"] = np.nan
+
     # Plot demographic and political parameter distributions
     axes = pairplot(params_categorical,
         fig=fig, spec=grid[0,i], diagonal_kind="kde", lower_kind="kde", upper_kind="empty",

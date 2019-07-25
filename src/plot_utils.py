@@ -122,29 +122,37 @@ fig=plt.gcf(), lower_kwargs={}, diagonal_kwargs={}, upper_kwargs={}, rasterized=
 
     for y,v2 in enumerate(df.columns):
         for x,v1 in enumerate(df.columns):
-            if y<x: # upper triangle
-                kind = upper_kind
-                kwargs = upper_kwargs
-            elif y==x: # diagonal
-                kind = diagonal_kind
-                kwargs = diagonal_kwargs
-            else: #lower triangle
-                kind = lower_kind
-                kwargs = lower_kwargs
+            if np.all(np.isnan(df[v1])) or np.all(np.isnan(df[v2])):
+                axes[y,x] = plt.Subplot(fig, g[y,x], **share_args)
+                kind = "noframe"
+            else:    
+                if y<x: # upper triangle
+                    kind = upper_kind
+                    kwargs = upper_kwargs
+                elif y==x: # diagonal
+                    kind = diagonal_kind
+                    kwargs = diagonal_kwargs
+                else: #lower triangle
+                    kind = lower_kind
+                    kwargs = lower_kwargs
 
-            if x==y and kind == "kde":
-                share_args={"sharex": fake_axes[(0,x)]}
-                tick_args_default={"left": False, "labelleft": False, "bottom": (y==N-1), "labelbottom": (y==N-1), "labelsize": 18, "length": 6}
-            else:
-                share_args={"sharex": fake_axes[(0,x)], "sharey": fake_axes[(y,0)]}
-                tick_args_default={"labelleft": (x==0), "labelright": (x==N-1), "labelbottom": (y==N-1), "left": (x==0), "right": (x==N-1), "bottom": (y==N-1), "labelsize": 18, "length": 6}
-            tick_args_default.update(tick_args)
-            tick_args = tick_args_default
+                if x==y and kind == "kde":
+                    share_args={"sharex": fake_axes[(0,x)]}
+                    tick_args_default={"left": False, "labelleft": False, "bottom": (y==N-1), "labelbottom": (y==N-1), "labelsize": 18, "length": 6}
+                else:
+                    share_args={"sharex": fake_axes[(0,x)], "sharey": fake_axes[(y,0)]}
+                    tick_args_default={"labelleft": (x==0), "labelright": (x==N-1), "labelbottom": (y==N-1), "left": (x==0), "right": (x==N-1), "bottom": (y==N-1), "labelsize": 18, "length": 6}
+                tick_args_default.update(tick_args)
+                tick_args = tick_args_default
 
-            axes[y,x] = plt.Subplot(fig, g[y,x], **share_args)
-            axes[y,x].tick_params(axis="x", labelrotation=xtickrotation, **tick_args)
+                axes[y,x] = plt.Subplot(fig, g[y,x], **share_args)
+                axes[y,x].tick_params(axis="x", labelrotation=xtickrotation, **tick_args)
 
-            if kind == "empty":
+            if kind == "noframe":
+                axes[y,x].set_frame_on(False)
+                axes[y,x].set_xticks([])
+                axes[y,x].set_yticks([])
+            elif kind == "empty":
                 axes[y,x].set_visible(False)
             elif kind == "scatter":
                 axes[y,x].scatter(df[v1],df[v2],**kwargs)
@@ -160,6 +168,7 @@ fig=plt.gcf(), lower_kwargs={}, diagonal_kwargs={}, upper_kwargs={}, rasterized=
             else:
                 raise NotImplementedError("Subplot kind must be 'empty', 'scatter', 'reg' or 'kde'.")
 
+            axes[y,x].set_rasterized(rasterized)
             if x==0 and ylabels:
                 axes[y,x].set_ylabel(labels.setdefault(v2, v2), rotation=ylabelrotation, ha='right', va="center", fontsize=18)
                 axes[y,x].tick_params(**tick_args)
@@ -174,11 +183,12 @@ fig=plt.gcf(), lower_kwargs={}, diagonal_kwargs={}, upper_kwargs={}, rasterized=
 
             fig.add_subplot(axes[y,x])
 
-            axes[y,x].set_rasterized(rasterized)
 
     positive = np.all(df.values >= 0)
 
     for y in range(N):
+        if np.all(np.isnan(df.iloc[:,y])):
+            continue
         μ = df.iloc[:,y].mean()
         σ = df.iloc[:,y].std()
         if positive:
@@ -189,6 +199,8 @@ fig=plt.gcf(), lower_kwargs={}, diagonal_kwargs={}, upper_kwargs={}, rasterized=
             fake_axes[(y,0)].set_ylim((μ-4*σ,μ+4*σ))
         fake_axes[(y,0)].yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%.1f'))
     for x in range(N):
+        if np.all(np.isnan(df.iloc[:,y])):
+            continue
         μ = df.iloc[:,x].mean()
         σ = df.iloc[:,x].std()
         if positive:
@@ -297,24 +309,35 @@ def energyplot(energies, fill_color=("C0","C1"), fill_alpha=(1,0.5), fig=plt.gcf
     
     
 # because the default forest plot is not flexible enough #sad
-def forestplot(trace, var_names=None, var_args={}, fig=plt.gcf(), sp=GridSpec(1,1)[:,:], combine=False, credible_interval=0.94):
-    if var_names == None:
-        var_names = trace.varnames
+def forestplot(trace, var_labels=None, var_args={}, fig=plt.gcf(), sp=GridSpec(1,1)[:,:], combine=False, credible_interval=0.95):
+    if var_labels == None:
+        var_labels = trace.varnames
+    
     var_args = defaultdict(lambda: {"color": "C1", "label": None, "interquartile_linewidth": 2, "credible_linewidth": 1}, **var_args)
     
-    num_groups = len(var_names)
+    num_groups = len(var_labels)
     tp = trace.point(0)
+    
+    # create indices
+    for i,var_label in enumerate(var_labels):
+        name = var_label if isinstance(var_label, str) else var_label[0]
+        
+        cart = product(*(range(s) for s in tp[name].shape))
+        if isinstance(var_label, str):
+            var_labels[i] = (var_label, map(np.squeeze,cart), cart)
+        else:
+            var_labels[i] = tuple(var_label) + (cart,)
 
-    def plot_var_trace(ax, y, var_trace, credible_interval=0.94, **args):
+    def plot_var_trace(ax, y, var_trace, credible_interval=0.95, **args):
         endpoint = (1 - credible_interval) / 2
         qs = np.quantile(var_trace, [endpoint, 1.0-endpoint, 0.25, 0.75])
         ax.plot(qs[:2],[y, y], color=args["color"], linewidth=args["credible_linewidth"])
         ax.plot(qs[2:],[y, y], color=args["color"], linewidth=args["interquartile_linewidth"])
         ax.plot([np.mean(var_trace)], [y], "o", color=args["color"], markersize=args["markersize"])
 
-    grid = GridSpecFromSubplotSpec(num_groups,1,sp, height_ratios=[np.prod(tp[name].shape)+2 for name in var_names])
+    grid = GridSpecFromSubplotSpec(num_groups,1,sp, height_ratios=[np.prod(tp[name].shape)+2 for (name,idxs,carts) in var_labels])
     axes = []
-    for j,name in enumerate(var_names):
+    for j,(name,idxs,carts) in enumerate(var_labels):
         if len(tp[name])==0:
             continue
             
@@ -325,15 +348,15 @@ def forestplot(trace, var_names=None, var_args={}, fig=plt.gcf(), sp=GridSpec(1,
         yticklabels = []
         # plot label
         # plot variable stats
-        for i,idx in enumerate(product(*(range(s) for s in tp[name].shape))):
+        for i,(idx,cart) in enumerate(zip(idxs,carts)):
             yticks.append(-i)
-            yticklabels.append("{}".format(np.squeeze(idx)))
+            yticklabels.append("{}".format(idx))
             if combine:
-                var_trace = trace[name][(slice(-1),)+tuple(idx)]
+                var_trace = trace[name][(slice(-1),)+cart]
                 plot_var_trace(ax, -i, var_trace, credible_interval=credible_interval, **args)
             else:
                 for c,chain in enumerate(trace.chains):
-                    var_trace = trace.get_values(name, chains=chain)[(slice(-1),)+tuple(idx)]
+                    var_trace = trace.get_values(name, chains=chain)[(slice(-1),)+cart]
                     plot_var_trace(ax, -i+0.25-c/(trace.nchains-1) * 0.5, var_trace, credible_interval=credible_interval, **args)
 
 
