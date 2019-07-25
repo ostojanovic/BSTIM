@@ -1,17 +1,11 @@
-
 from matplotlib import pyplot as plt
 plt.style.use('ggplot')
 import datetime, pickle as pkl, numpy as np, matplotlib, pandas as pd, pymc3 as pm
 from pymc3.stats import quantiles
-from shared_utils import load_data, split_data
+from shared_utils import *
 from matplotlib import rc
 import isoweek
 from BaseModel import BaseModel
-matplotlib.rcParams['text.usetex'] = True
-matplotlib.rcParams['text.latex.unicode'] = True
-plt.rcParams["font.family"] = "Bitstream Charter"
-diseases = ["campylobacter", "rotavirus", "borreliosis"]
-prediction_regions = ["germany", "bavaria"]
 
 with open('../data/comparison.pkl',"rb") as f:
     best_model=pkl.load(f)
@@ -41,13 +35,12 @@ C3 = C2#"#808080"
 
 fig = plt.figure(figsize=(12,9))
 #fig.suptitle("Learned interaction kernels and temporal contributions", fontsize=20)
-grid = plt.GridSpec(3, len(diseases), top=0.93, bottom=0.12, left=0.11, right=0.97, hspace=0.28, wspace=0.25)
+grid = plt.GridSpec(3, len(diseases), top=0.93, bottom=0.12, left=0.11, right=0.97, hspace=0.28, wspace=0.30)
 
 for i,disease in enumerate(diseases):
     use_age = best_model[disease]["use_age"]
     use_eastwest = best_model[disease]["use_eastwest"]
     prediction_region         = "bavaria" if disease=="borreliosis" else "germany"
-    filename_pred = "../data/mcmc_samples/parameters_{}_{}_{}.pkl".format(disease, use_age, use_eastwest)
     data = load_data(disease, prediction_region, county_info)
     data_train, target_train, data_test, target_test = split_data(data)
     tspan = (target_train.index[0],target_train.index[-1])
@@ -59,10 +52,9 @@ for i,disease in enumerate(diseases):
     periodic_features = features["temporal_seasonal"].swaplevel(0,1).loc["09162"]
     #t_all = t_all_b if disease == "borreliosis" else t_all_cr
 
-    with open(filename_pred,"rb") as f:
-        trace = pkl.load(f)
-        trend_params = pm.trace_to_dataframe(trace, varnames=["W_t_t"])
-        periodic_params = pm.trace_to_dataframe(trace, varnames=["W_t_s"])
+    trace= load_trace(disease, use_age, use_eastwest)
+    trend_params = pm.trace_to_dataframe(trace, varnames=["W_t_t"])
+    periodic_params = pm.trace_to_dataframe(trace, varnames=["W_t_s"])
 
     TT = trend_params.values.dot(trend_features.values.T)
     TP = periodic_params.values.dot(periodic_features.values.T)
@@ -130,5 +122,5 @@ for i,disease in enumerate(diseases):
     fig.text(0,1+0.025, r"$\textbf{"+str(i+1)+r"B}$", fontsize=22, transform=ax_t.transAxes)
     fig.text(0,1+0.025, r"$\textbf{"+str(i+1)+r"C}$", fontsize=22, transform=ax_tp.transAxes)
 
-plt.show()
-# fig.savefig("../figures/temporal_contribution.pdf")
+# plt.show()
+fig.savefig("../figures/temporal_contribution.pdf")

@@ -1,17 +1,13 @@
-
+from config import *
+from shared_utils import *
+from plot_utils import *
 import pickle as pkl
 import numpy as np
 import matplotlib
 from matplotlib import pyplot as plt
 plt.style.use("ggplot")
-from shared_utils import load_data, split_data, pairplot
 from matplotlib import rc
 import pymc3 as pm, seaborn as sns
-matplotlib.rcParams['text.usetex'] = True
-matplotlib.rcParams['text.latex.unicode'] = True
-plt.rcParams["font.family"] = "Bitstream Charter"
-
-diseases = ["campylobacter", "rotavirus", "borreliosis"]
 
 with open('../data/comparison.pkl',"rb") as f:
     best_model=pkl.load(f)
@@ -25,12 +21,13 @@ grid = plt.GridSpec(2, len(diseases), figure=fig, top=0.93, bottom=0.09, left=0.
 for i,disease in enumerate(diseases):
     use_age = best_model[disease]["use_age"]
     use_eastwest = best_model[disease]["use_eastwest"]
-    filename_pred = "../data/mcmc_samples/parameters_{}_{}_{}.pkl".format(disease, use_age, use_eastwest)
 
-    with open(filename_pred,"rb") as f:
-        trace = pkl.load(f)
-        params_categorical = pm.trace_to_dataframe(trace, varnames=["W_ts","W_s"])
-        params_alpha = pm.trace_to_dataframe(trace, varnames=["α"])
+    trace = load_trace(disease, use_age, use_eastwest)
+    params_categorical = pm.trace_to_dataframe(trace, varnames=["W_ts","W_s"])
+    params_alpha = pm.trace_to_dataframe(trace, varnames=["α"])
+
+    if "W_s__0" not in params_categorical.columns:
+        params_categorical["W_s__0"] = np.nan
 
     # Plot demographic and political parameter distributions
     axes = pairplot(params_categorical,
@@ -59,5 +56,5 @@ for i,disease in enumerate(diseases):
     box=grid[1,i].get_position(fig)
     fig.text(box.xmin, box.ymax, r"$\textbf{"+str(i+1)+"B"+r"}$", fontsize=22, ha="left", va="bottom")
 
-plt.show()
-# fig.savefig("../figures/exogenous_components.pdf")
+# plt.show()
+fig.savefig("../figures/exogenous_components.pdf")

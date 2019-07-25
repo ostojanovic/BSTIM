@@ -1,23 +1,16 @@
+from config import *
+from plot_utils import *
+from shared_utils import *
 import pickle as pkl
-import pandas as pd
 import numpy as np
-import scipy.stats
-from shared_utils import load_data, split_data, parse_yearweek, quantile_negbin, plot_counties
-from pymc3.stats import quantiles
 from collections import OrderedDict
-import matplotlib
-from matplotlib import pyplot as plt, font_manager as fm
-plt.style.use("ggplot")
-from matplotlib import rc
-matplotlib.rcParams['text.usetex'] = True
-matplotlib.rcParams['text.latex.unicode'] = True
-plt.rcParams["font.family"] = "Bitstream Charter"
-import matplotlib.patheffects as PathEffects
-
-diseases = ["campylobacter", "rotavirus", "borreliosis"]
+from matplotlib import pyplot as plt
 
 with open('../data/counties/counties.pkl',"rb") as f:
     counties = pkl.load(f)
+    
+with open('../data/comparison.pkl',"rb") as f:
+    best_model=pkl.load(f)
 
 prediction_week = 30
 xlim = (5.5,15.5)
@@ -34,11 +27,6 @@ C3 = "#0073CF"
 # quantiles we want to plot
 qs = [0.25, 0.50, 0.75]
 
-########## added: file selection ###########
-with open('../data/comparison.pkl',"rb") as f:
-    best_model=pkl.load(f)
-############################################
-
 fig = plt.figure(figsize=(12, 14))
 grid = plt.GridSpec(3, len(diseases), top=0.9, bottom=0.1, left=0.07, right=0.97, hspace=0.25, wspace=0.15, height_ratios=[1,1,1.75])
 
@@ -46,7 +34,12 @@ for i,disease in enumerate(diseases):
     # Load data
     use_age = best_model[disease]["use_age"]
     use_eastwest = best_model[disease]["use_eastwest"]
-    prediction_region = "bavaria" if disease=="borreliosis" else "germany"
+    if disease=="borreliosis":
+        prediction_region = "bavaria"
+        use_eastwest = False
+    else:
+        prediction_region = "germany"
+        
     data = load_data(disease, prediction_region, counties)
     data = data[data.index < parse_yearweek("2018-KW1")]
     if disease == "borreliosis":
@@ -54,12 +47,9 @@ for i,disease in enumerate(diseases):
     _, _, _, target = split_data(data)
     county_ids = target.columns
 
-    # Load our prediction samples
-    filename_pred = "../data/mcmc_samples/predictions_{}_{}_{}.pkl".format(disease, use_age, use_eastwest)
-    with open(filename_pred,"rb") as f:
-        res = pkl.load(f)
+    res = load_pred(disease, use_age, use_eastwest)
 
-    prediction_samples = np.reshape(res['Y'], (800,104,-1))
+    prediction_samples = np.reshape(res['y'], (res['y'].shape[0],104,-1))
     prediction_quantiles = quantiles(prediction_samples, (5,25,75,95))
 
     prediction_mean = pd.DataFrame(data=np.mean(prediction_samples, axis=0), index=target.index, columns=target.columns)

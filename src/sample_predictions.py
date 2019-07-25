@@ -37,19 +37,13 @@ for disease in diseases:
         # load sample trace
         trace = load_trace(disease, use_age, use_eastwest)
         
-        # load model
-        model = load_model(disease, use_age, use_eastwest)
-        
-        with model:
-            waics[name] = pm.waic(trace).WAIC
-            
-    # do model selection
-    best_key = min(waics, key=waics.get)
-        
-    use_age, use_eastwest = age_eastwest_by_name[best_key]
-    if disease=="borreliosis":
-        use_eastwest = False
-    best_model[disease] = {"name": best_key, "use_age": use_age, "use_eastwest": use_eastwest, "comparison": waics}
+        model = BaseModel(tspan, county_info, ["../data/ia_effect_samples/{}_{}.pkl".format(disease, i) for i in range(100)], include_eastwest=use_eastwest, include_demographics=use_age)
 
-with open('../data/comparison.pkl',"wb") as f:
-    pkl.dump(best_model, f)
+        filename_pred = "../data/mcmc_samples/predictions_{}_{}_{}.pkl".format(disease, use_age, use_eastwest)
+        print("Sampling predictions on the testing set.")
+        pred = model.sample_predictions(target_test.index, target_test.columns, trace)
+        with open(filename_pred, 'wb') as f:
+            pkl.dump(pred, f)
+        
+        del trace
+        del model
