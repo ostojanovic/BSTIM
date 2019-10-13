@@ -183,6 +183,7 @@ class BaseModel(object):
             W_s   = pm.Normal("W_s", mu=0, sd=10, testval=np.zeros(num_s), shape=num_s)
             self.param_names = ["δ", "W_ia", "W_t_s", "W_t_t", "W_ts", "W_s"]
             self.params = [δ, W_ia, W_t_s, W_t_t, W_ts, W_s]
+            self.param_shape = [1, self.num_ia, num_t_s, num_t_t, num_ts, num_s]
 
             # calculate interaction effect
             IA_ef = tt.dot(tt.dot(IA, self.Q), W_ia)
@@ -214,8 +215,11 @@ class BaseModel(object):
 
         with self.model:
             # run!
+            shape_NUTS_params = np.sum(self.param_shape)
+
+            init_pot = pm.hmc.quadpotential.QuadPotentialDiagAdapt(shape_NUTS_params, np.zeros(shape_NUTS_params, dtype=np.float32)+0.5)
             ia_effect_loader = IAEffectLoader(self.model.IA, self.ia_effect_filenames, target.index, target.columns)
-            nuts = pm.step_methods.NUTS(vars=self.params, target_accept=target_accept, max_treedepth=max_treedepth)
+            nuts = pm.step_methods.NUTS(vars=self.params, target_accept=target_accept, max_treedepth=max_treedepth, potential=init_pot)
             steps = (([ia_effect_loader] if self.include_ia else [] ) + [nuts] )
             trace = pm.sample(samples, steps, chains=chains, cores=cores, compute_convergence_checks=False, **kwargs)
            
