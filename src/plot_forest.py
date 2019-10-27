@@ -23,6 +23,14 @@ matplotlib.rcParams['axes.titlesize'] = 22
 diseases = ["campylobacter", "rotavirus", "borreliosis"]
 prediction_regions = ["germany", "bavaria"]
 
+# sample_dir="../data/mcmc_samples"
+# figure_dir="../figures/"
+# suffix=""
+sample_dir="/data/BSTIM/data/sensitivity_analysis/mcmc_samples"
+suffix="_40.0"
+figure_dir="/data/BSTIM/figures/sensitivity_analysis/"
+combine=True
+
 with open('../data/comparison.pkl',"rb") as f:
     best_model=pkl.load(f)
     
@@ -30,14 +38,8 @@ for disease in diseases:
     use_age = best_model[disease]["use_age"]
     use_eastwest = best_model[disease]["use_eastwest"]
     prediction_region         = "bavaria" if disease=="borreliosis" else "germany"
-    filename_params = "../data/mcmc_samples/parameters_{}_{}_{}".format(disease, use_age, use_eastwest)
-    filename_model = "../data/mcmc_samples/model_{}_{}_{}.pkl".format(disease, use_age, use_eastwest)
-
-    with open(filename_model,"rb") as f:
-        model = pkl.load(f)
-
-    with model:
-        trace = pm.load_trace(filename_params)
+    
+    trace = load_trace(disease, use_age, use_eastwest, dir=sample_dir, suffix=suffix)
 
     fig = plt.figure(figsize=(12, 14))
     grid = GridSpec(1, 2, top=0.9, bottom=0.1, left=0.07, right=0.97, hspace=0.25, wspace=0.15)
@@ -56,11 +58,12 @@ for disease in diseases:
     ts_range = range(26,29)
     s_range = range(29,30)
 
-    forestplot(trace, var_labels=[("W_ia", ia_range)], var_args=W_ia_args, fig=fig, sp=grid[0])
-    forestplot(trace, var_labels=[("W_t_t", t_t_range), ("W_t_s", t_s_range), ("W_ts", ts_range), ("W_s", s_range)], var_args=other_args, fig=fig, sp=grid[1])
-    plt.savefig("../figures/forest_{}.pdf".format(disease))
+    forestplot(trace, var_labels=[("W_ia", ia_range)], var_args=W_ia_args, fig=fig, sp=grid[0], combine=combine)
+    forestplot(trace, var_labels=[("W_t_t", t_t_range), ("W_t_s", t_s_range), ("W_ts", ts_range), ("W_s", s_range)], var_args=other_args, fig=fig, sp=grid[1], combine=combine)
+    plt.savefig(os.path.join(figure_dir,"forest_{}{}.pdf".format(disease, suffix)))
 
-    del model
+    # del model
     del trace
     gc.collect()
+    plt.close()
     

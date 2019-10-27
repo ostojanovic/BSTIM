@@ -27,6 +27,11 @@ C3 = "#0073CF"
 # quantiles we want to plot
 qs = [0.25, 0.50, 0.75]
 
+sample_dir="../data/mcmc_samples"
+suffix=""
+# sample_dir="/data/BSTIM/data/sensitivity_analysis/mcmc_samples"
+# sensitivity="_40.0"
+
 fig = plt.figure(figsize=(12, 14))
 grid = plt.GridSpec(3, len(diseases), top=0.9, bottom=0.1, left=0.07, right=0.97, hspace=0.25, wspace=0.15, height_ratios=[1,1,1.75])
 
@@ -47,7 +52,7 @@ for i,disease in enumerate(diseases):
     _, _, _, target = split_data(data)
     county_ids = target.columns
 
-    res = load_pred(disease, use_age, use_eastwest)
+    res = load_pred(disease, use_age, use_eastwest, dir=sample_dir, suffix=suffix)
 
     prediction_samples = np.reshape(res['y'], (res['y'].shape[0],104,-1))
     prediction_quantiles = quantiles(prediction_samples, (5,25,75,95))
@@ -119,5 +124,5 @@ for i,disease in enumerate(diseases):
 
 fig.text(0.01, 0.66, "Reported/predicted infections", va='center', rotation='vertical', fontsize=22)
 
-plt.savefig("../figures/curves.pdf")
-# plt.show()
+# plt.savefig("../figures/curves.pdf")
+plt.show()

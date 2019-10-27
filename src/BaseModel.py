@@ -109,7 +109,7 @@ class BaseModel(object):
     * interaction effects (functions of distance in time and space relative to each datapoint)
     """
 
-    def __init__(self, trange, counties, ia_effect_filenames, num_ia=16, model=None, include_ia=True, include_eastwest=True, include_demographics=True, include_temporal=True, orthogonalize=False):
+    def __init__(self, trange, counties, ia_effect_filenames, num_ia=16, prior_scale=10, model=None, include_ia=True, include_eastwest=True, include_demographics=True, include_temporal=True, orthogonalize=False):
         self.county_info = counties
         self.ia_effect_filenames = ia_effect_filenames
         self.num_ia = num_ia if include_ia else 0
@@ -118,6 +118,7 @@ class BaseModel(object):
         self.include_demographics = include_demographics
         self.include_temporal = include_temporal
         self.trange = trange
+        self.prior_scale = prior_scale
 
         first_year=self.trange[0][0]
         last_year=self.trange[1][0]
@@ -176,7 +177,7 @@ class BaseModel(object):
             #δ = 1/√α
             δ     = pm.HalfCauchy("δ", 10, testval=1.0)
             α     = pm.Deterministic("α", np.float32(1.0)/δ)
-            W_ia  = pm.Normal("W_ia", mu=0, sd=10, testval=np.zeros(self.num_ia), shape=self.num_ia)
+            W_ia  = pm.Normal("W_ia", mu=0, sd=self.prior_scale, testval=np.zeros(self.num_ia), shape=self.num_ia)
             W_t_s = pm.Normal("W_t_s", mu=0, sd=10, testval=np.zeros(num_t_s), shape=num_t_s)
             W_t_t = pm.Normal("W_t_t", mu=0, sd=10, testval=np.zeros(num_t_t), shape=num_t_t)
             W_ts  = pm.Normal("W_ts", mu=0, sd=10, testval=np.zeros(num_ts), shape=num_ts)

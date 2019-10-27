@@ -145,26 +145,26 @@ def set_file_permissions(filename, uid, gid, permissions=0o660):
     os.chown(filename, uid, gid)
 
 
-def load_model(disease, use_age, use_eastwest):
-    filename_model = "../data/mcmc_samples/model_{}_{}_{}.pkl".format(disease, use_age, use_eastwest)
+def load_model(disease, use_age, use_eastwest, dir="../data/mcmc_samples/",suffix=""):
+    filename_model = os.path.join(dir,"model_{}_{}_{}{}.pkl".format(disease, use_age, use_eastwest, suffix))
 
     with open(filename_model,"rb") as f:
         model = pkl.load(f)
     return model
 
-def load_trace(disease, use_age, use_eastwest):
-    filename_params = "../data/mcmc_samples/parameters_{}_{}_{}".format(disease, use_age, use_eastwest)
+def load_trace(disease, use_age, use_eastwest, dir="../data/mcmc_samples/",suffix=""):
+    filename_params = os.path.join(dir,"parameters_{}_{}_{}{}".format(disease, use_age, use_eastwest, suffix))
 
-    model = load_model(disease, use_age, use_eastwest)
+    model = load_model(disease, use_age, use_eastwest, dir=dir, suffix=suffix)
     with model:
         trace = pm.load_trace(filename_params)
     
     del model
     return trace
 
-def load_pred(disease, use_age, use_eastwest):
+def load_pred(disease, use_age, use_eastwest, dir="../data/mcmc_samples/", suffix=""):
     # Load our prediction samples
-    filename_pred = "../data/mcmc_samples/predictions_{}_{}_{}.pkl".format(disease, use_age, use_eastwest)
+    filename_pred = os.path.join(dir,"predictions_{}_{}_{}{}.pkl".format(disease, use_age, use_eastwest, suffix))
     with open(filename_pred,"rb") as f:
         res = pkl.load(f)
     return res
