@@ -27,7 +27,7 @@ prediction_regions = ["germany", "bavaria"]
 # figure_dir="../figures/"
 # suffix=""
 sample_dir="/data/BSTIM/data/sensitivity_analysis/mcmc_samples"
-suffix="_40.0"
+suffix="_0.625"
 figure_dir="/data/BSTIM/figures/sensitivity_analysis/"
 combine=True
 
@@ -60,10 +60,11 @@ for disease in diseases:
 
     forestplot(trace, var_labels=[("W_ia", ia_range)], var_args=W_ia_args, fig=fig, sp=grid[0], combine=combine)
     forestplot(trace, var_labels=[("W_t_t", t_t_range), ("W_t_s", t_s_range), ("W_ts", ts_range), ("W_s", s_range)], var_args=other_args, fig=fig, sp=grid[1], combine=combine)
-    plt.savefig(os.path.join(figure_dir,"forest_{}{}.pdf".format(disease, suffix)))
-
-    # del model
+    
+    
     del trace
     gc.collect()
+    plt.savefig(os.path.join(figure_dir,"forest_{}{}.pdf".format(disease, suffix)))
+
     plt.close()
     

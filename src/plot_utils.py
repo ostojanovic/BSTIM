@@ -307,68 +307,82 @@ def energyplot(energies, fill_color=("C0","C1"), fill_alpha=(1,0.5), fig=plt.gcf
     ax.set_xticks([])
     ax.set_yticks([])
     
-    
-# because the default forest plot is not flexible enough #sad
-def forestplot(trace, var_labels=None, var_args={}, fig=plt.gcf(), sp=GridSpec(1,1)[:,:], combine=False, credible_interval=0.95):
-    if var_labels == None:
-        var_labels = trace.varnames
-    
-    var_args = defaultdict(lambda: {"color": "C1", "label": None, "interquartile_linewidth": 2, "credible_linewidth": 1}, **var_args)
-    
-    num_groups = len(var_labels)
-    tp = trace.point(0)
-    
-    # create indices
-    for i,var_label in enumerate(var_labels):
-        name = var_label if isinstance(var_label, str) else var_label[0]
-        
-        cart = product(*(range(s) for s in tp[name].shape))
-        if isinstance(var_label, str):
-            var_labels[i] = (var_label, map(np.squeeze,cart), cart)
-        else:
-            var_labels[i] = tuple(var_label) + (cart,)
+def get_trace_stats(trace, qs=[0.025, 0.975, 0.25, 0.75], vars=None, include_vars=None, combine=False):
+    if vars == None:
+        vars = trace.varnames
 
-    def plot_var_trace(ax, y, var_trace, credible_interval=0.95, **args):
-        endpoint = (1 - credible_interval) / 2
-        qs = np.quantile(var_trace, [endpoint, 1.0-endpoint, 0.25, 0.75])
-        ax.plot(qs[:2],[y, y], color=args["color"], linewidth=args["credible_linewidth"])
-        ax.plot(qs[2:],[y, y], color=args["color"], linewidth=args["interquartile_linewidth"])
-        ax.plot([np.mean(var_trace)], [y], "o", color=args["color"], markersize=args["markersize"])
+    if include_vars == None:
+        include_vars = vars
 
-    grid = GridSpecFromSubplotSpec(num_groups,1,sp, height_ratios=[np.prod(tp[name].shape)+2 for (name,idxs,carts) in var_labels])
-    axes = []
-    for j,(name,idxs,carts) in enumerate(var_labels):
-        if len(tp[name])==0:
+    stats = OrderedDict()
+    i=1
+    for name in include_vars:
+        s = np.prod(trace.point(0)[name].shape).astype(int)
+        if s == 0:
             continue
-            
-        ax = fig.add_subplot(grid[j])
-        args= var_args[name]
 
-        yticks = []
-        yticklabels = []
-        # plot label
-        # plot variable stats
-        for i,(idx,cart) in enumerate(zip(idxs,carts)):
-            yticks.append(-i)
-            yticklabels.append("{}".format(idx))
+        if name in vars:
             if combine:
-                var_trace = trace[name][(slice(-1),)+cart]
-                plot_var_trace(ax, -i, var_trace, credible_interval=credible_interval, **args)
+                vals = trace.get_values(name)
+                stats[name] = {"ids": range(i,i+s), "quantiles": np.quantile(vals,qs,axis=0), "means": np.mean(vals,axis=0)}
             else:
-                for c,chain in enumerate(trace.chains):
-                    var_trace = trace.get_values(name, chains=chain)[(slice(-1),)+cart]
-                    plot_var_trace(ax, -i+0.25-c/(trace.nchains-1) * 0.5, var_trace, credible_interval=credible_interval, **args)
+                stats[name] = {"ids": range(i,i+s), "traces":[]}
+                for chain in trace.chains:
+                    vals = trace.get_values(name, chains=chain)
+                    stats[name]["traces"].append({"quantiles": np.quantile(vals,qs,axis=0), "means": np.mean(vals,axis=0)})
+        i+=s
+    return stats
 
+# because the default forest plot is not flexible enough #sad
+def forestplot(stats, group_args={}, fig=plt.gcf(), sp=GridSpec(1,1)[:,:], combine=False, credible_interval=0.95, credible_linewidth=1, interquartile_linewidth=2, markersize=3):
 
+    def plot_var_trace(ax, y, qs, m, color="black"):
+        ax.plot(qs[:2],[y, y], color=color, linewidth=credible_linewidth)
+        ax.plot(qs[2:],[y, y], color=color, linewidth=interquartile_linewidth)
+        ax.plot([m], [y], "o", color=color, markersize=markersize)
+
+    grid = GridSpecFromSubplotSpec(len(stats),1,sp, height_ratios=[len(v["ids"])+2 for v in stats.values()])
+    axes = []
+    # iterate over all variables
+    for j,(group_name,group) in enumerate(stats.items()):
+        if len(group["ids"])==0:
+            continue
+        # arguments for this group
+        args = group_args.setdefault(group_name, {"color": "black"})
+
+        ax = fig.add_subplot(grid[j])
+        yticks = []
+        yticklabels = []      
+
+        # iterate over all components
+        for idx,i in enumerate(group["ids"]):
+            if "traces" in group:
+                # iterate over all chains
+                for t,trace in enumerate(group["traces"]):
+                    qs=trace["quantiles"][:,idx]
+                    m=trace["means"][idx]
+                    y=-idx+0.25-t/(len(group["traces"])-1) * 0.5
+                    if isinstance(args["color"], list):
+                        color = args["color"][t]
+                    else:
+                        color = args["color"]
+                    
+                    plot_var_trace(ax, y, qs, m, color=color)
+            else:
+                qs=group["quantiles"][:,idx]
+                m=group["means"][idx]
+                y=-idx
+                plot_var_trace(ax, y, qs, m, color=args["color"])
+           
+            yticks.append(-idx)
+            yticklabels.append("{}".format(i))
+       
         ax.set_yticks(yticks)
         ax.set_ylim([yticks[-1]-1, 1])
         ax.set_yticklabels(yticklabels)
-
-        label = args["label"]
-        if label == None:
-            label = name
+    
+        label = args.setdefault("label", group_name)
         ax.set_ylabel(label)
-
-        # ax.set_frame_on(False)
         axes.append(ax)
+
     return axes, grid
