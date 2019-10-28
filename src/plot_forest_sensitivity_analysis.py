@@ -85,7 +85,7 @@ for disease in diseases:
     
     
     gc.collect()
-    plt.savefig(os.path.join(figure_dir,"forest_{}.pdf".format(disease)))
+    plt.savefig(os.path.join(figure_dir,"forest_{}_sensitivity.pdf".format(disease)))
 
     plt.close()
     
