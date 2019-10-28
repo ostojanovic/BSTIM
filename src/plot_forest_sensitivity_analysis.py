@@ -17,6 +17,7 @@ plt.rcParams["font.family"] = "Bitstream Charter"
 
 matplotlib.rcParams['xtick.labelsize'] = 16
 matplotlib.rcParams['ytick.labelsize'] = 16
+matplotlib.rcParams['legend.fontsize'] = 16
 matplotlib.rcParams['axes.labelsize'] = 22
 matplotlib.rcParams['axes.titlesize'] = 22
 
@@ -78,9 +79,9 @@ for disease in diseases:
         "W_ts": {"color": ["C1","C2","C3","C4","C5"], "label": "$W_{D}$"},
         "W_s": {"color": ["C1","C2","C3","C4","C5"], "label": "$W_{E/W}$"},
     }
-
     forestplot(stats_ia, group_args=W_ia_args, fig=fig, sp=grid[0], combine=combine)
     forestplot(stats_others, group_args=other_args, fig=fig, sp=grid[1], combine=combine)
+    plt.figlegend([plt.Line2D([],[],linewidth=2, marker="o", markersize=4, color=c) for c in ["C1","C2","C3","C4","C5"]], ["{}".format(scale) for scale in prior_scales], loc="center", bbox_to_anchor=(0.5,0.05), ncol=5)
     
     
     gc.collect()
